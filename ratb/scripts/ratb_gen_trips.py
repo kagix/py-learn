@@ -108,7 +108,7 @@ def processFirstTrip(filename, dircode):
 
         toks = line.strip().split(":")
         if len(toks) == 2:
-            code=str(number)+"_"+day+ "_" + dircode + "_" + str(number)
+            code=str(linia)+"_"+day+ "_" + dircode + "_" + str(number)
             number = number+1 
             msg=str(linia) + "," + str(cal)  + "," + code
             

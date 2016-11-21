@@ -17,10 +17,18 @@ CRAWL_LINE_BUS="linii_autobuz.csv"
 CRAWL_LINE_TRAMWAY="linii_tramvai.csv"
 STOPS="stops"
 COUNT="count"
+TIMES="times"
+TRIPS="trips"
+STOP_CODE="code"
+KEY_LUCRU="L"
+KEY_SAMBATA="S"
+KEY_DUMINICA="D"
+
+LINENO="4"
+
 
 def getLinesTramwayPath():
     return HOME_DIR + "/" + CRAWL_DIR + "/" + CRAWL_STOPS_DIR + "/" + CRAWL_LINE_TRAMWAY
-
 
 def getLinesPath():
     return HOME_DIR + "/" + CRAWL_DIR + "/" + LINES_DIR + "/" + LINES_FILE
@@ -56,39 +64,13 @@ def getFirstTimeTableForLine(lineNumber, direction):
     if direction == "down":
         return "detaliu_"+str(lineNumber) + "_50.txt"
 
+def readTimeTableFile(filePath):
+    timeTable={}
 
-def processStopTimesForRouteAndDirection(filename, number,dircode, stops):
-    stopTimes = stops
-    split1 = filename.split(".")
-    split2 = split1[0].split("_")
-    split2[len(split2)-1]=""
-    prefix="_".join(split2)
-    
-    delta = 0
-    if dircode =="down":
-        delta=50
-
-    for key in stopTimes[number][dircode].keys():
-        if key == COUNT:
-            continue
-        ikey = int(key)
-        iname=ikey + delta
-          
-        
-
-    f = open(filename,'r')
+    f = open(filePath,'r')
     lines = f.readlines()
     f.close
-    
-    #f3=open(getTripsPath(),"a") 
-    parts = filename.split("/")
-    part = parts [ len(parts) -1]
-
-    parts = part.split(".")
-    part = parts[0]
-    parts = part.split("_")
-    part = parts[2]
- 
+   
     linia=""
     statia=""
     directia=""
@@ -101,12 +83,12 @@ def processStopTimesForRouteAndDirection(filename, number,dircode, stops):
        
     code="" 
     cal=""
-
     for line in lines:
+        sline = line.strip()
         if "LINIA=" in line:
        	    linia=line.split("=")[1].strip()
     	    continue
-    
+
         if "STATIA=" in line:
             statia=line.split("=")[1].strip()
     	    continue
@@ -114,126 +96,162 @@ def processStopTimesForRouteAndDirection(filename, number,dircode, stops):
         if "DIRECTIA=" in line:
     	    directia=line.split("=")[1].strip()
     	    continue
-        
+
         if "LUCRU" in line:
     	    lucru="LUCRU"
             cal="CAL12345"
-            day="L"
+            day=KEY_LUCRU
             number = 0
+            timeTable[day] = []
     	    continue
     
         if "SAMBATA" in line:
     	    sambata="SAMBATA"
             cal="CAL6"
-            day="S"
+            day=KEY_SAMBATA
+            timeTable[day] = []
             number = 0
     	    continue
     
         if "DUMINICA" in line:
     	    duminica="DUMINICA"
             cal="CAL7"
-            day="D"
+            day=KEY_DUMINICA
+            timeTable[day] = []
             number = 0
     	    continue
 
         toks = line.strip().split(":")
         if len(toks) == 2:
-            code=str(number)+"_"+day+ "_" + dircode + "_" + str(number)
-            number = number+1 
-            msg=str(linia) + "," + str(cal)  + "," + code
-            
-            msg=str(linia) + "," 
-            msg = msg +  str(cal) + ","
-            msg = msg + str(code)
-            print msg
-            #f3.write( msg + "\n")
+            if len(timeTable[day]) < 1:
+                timeTable[day].append(":".join(toks))
+            timeTable[day].append(":".join(toks))
 
-        #f3.flush()
-        #f3.close
+    return timeTable
 
-def processStopTimesUp(filename, number):
-    return processStopTimesForRouteAndDirection(filename,number,"U", stops)
 
-def processStopTimesDown(filename, number,stops):
-    return processStopTimesForRouteAndDirection(filename,number,"D", stops)
+def readTimeTableForLine(lineNumber):
+    timeTable = {}
+    dirPath = getTimeTablesPath(lineNumber)
+    for fileName in os.listdir(dirPath):
+        fullPath = dirPath + fileName
 
-def processStopTimes(donelines, filter, stops):
-    stopTimes = stops
-    for doneline in donelines:
-        line = doneline.strip()
-        if line == "":
+        split1 = fileName.split(".")
+        if split1[0] == "":
             continue
-        line = doneline.strip()
-
-        toks = line.split("/")
-        lastok = toks[len(toks)-1].strip()
-
-        if len(filter) > 0 and lastok not in filter:
-            #print lastok + " already done" + "\n"
-            continue
-        print "Adding trip " + lastok + "\n"
-        dirname =  getTimeTablesPath(lastok)
-
-
-        firstTimeTableUp = getFirstTimeTableForLine(lastok, "up")
-        firstTimeTableDown = getFirstTimeTableForLine(lastok, "down")
-
-        for timetable in os.listdir(dirname):
-           if timetable == firstTimeTableUp:
-               fullpath=dirname+timetable
-               stopTimes = processStopTimesUp(fullpath, lastok, stopTimes)
-
-           if timetable == firstTimeTableDown:
-               fullpath=dirname+timetable
-               stopTimes = processStopTimesDown(fullpath, lastok, stopTimes)
-    return stopTimes
+        table = readTimeTableFile(fullPath)
+        split2 = split1[0].split("_")
+        timeTable[split2[2]] = table
+    return timeTable     
 
 def readTramwayStops():
     f = open(getLinesTramwayPath(),"r")
     data = f.readlines()
     f.close()
+    #stops[<1>|<4>|<..>][<up>|<down>]["trips"|"stops"]
+    # trips -> [trip_no][seq_no]=ora
+    # stops -> seq_no ->infos
+    
     stops = {}
     num = 0
     for detail in data:
         if num > 0:
             toks = detail.split(",")
             (line,seq)=toks[0].strip().split("_")
+            #if not line  == LINENO:
+            #    continue
             cod = toks[2].strip()
             direction=toks[len(toks)-1].strip()
+            #if not line == LINENO:
+            #    continue 
             if line not in stops.keys():
                 stops[line] = {}
             if direction not in stops[line].keys():
                 stops[line][direction] = {}
-                stops[line][direction][COUNT] = 0
                 stops[line][direction][STOPS] = {}
             # increase count    
             if seq not in stops[line][direction][STOPS].keys():
-                if (int(seq) +1) > stops[line][direction][COUNT]:
-                    stops[line][direction][COUNT]=(int(seq) +1)
-                stops[line][direction][int(seq)]={}
-                stops[line][direction][int(seq)]['']={}
-                stops[line][direction][int(seq)]={}
-  
+                stops[line][direction][STOPS][int(seq)]={}
+            stops[line][direction][STOPS][int(seq)][STOP_CODE]=cod
  
         num = num + 1
     return stops
         
+def getDirection(direction):
+    if direction == "up":
+        return "U"
+    else:
+        return "D"
 
+def plotStopTimes(stopTimes):
+    lista = [];
+    f=open(getStopTimesPath(),"a") 
+    for line in stopTimes.keys():
+        for direction in stopTimes[line].keys():
+            #if direction== "down":
+            #    continue
+            stops  = stopTimes[line][direction][STOPS].keys()
+            print str(stopTimes[line][direction][STOPS].keys())
+            for stop in stopTimes[line][direction][STOPS].keys():
+                stopStr = str (stop)
+                if TIMES not in stopTimes[line][direction].keys():
+                    continue
+                for day in stopTimes[line][direction][TIMES][stopStr].keys():
+                    #for trip in stopTimes[line][direction][TIMES][stopStr][day]:
+                    #print (""+line + "/"+direction + "/"+ stopStr+ "/" + day + "/" + str(trip))
+                    nbTrips = len(stopTimes[line][direction][TIMES][stopStr][day])
+                    for tripNo in range(0,nbTrips):
+                        tripId = line + "_" + day + "_" + getDirection(direction) + "_" + str(tripNo)
+                        arrivalTime = stopTimes[line][direction][TIMES][stopStr][day][tripNo]
+                        departureTime = stopTimes[line][direction][TIMES][stopStr][day][tripNo]
+                        stopId = stopTimes[line][direction][STOPS][stop] ['code']
+                        stopSequence = stopStr
+                        msg = tripId + "," + arrivalTime+ "," + departureTime + "," + stopId + "," + stopSequence
+                        #print msg
+                        f.write(msg + "\n")
+    f.close()
+    
+
+
+def appendLineTable(lineNo, stops):
+    tramStops = stops        
+    table = readTimeTableForLine(lineNo)
+    direction=""
+    for key in table.keys():
+        ikey = int(key)
+        if ikey >= 50:
+            direction="down"
+            ikey = ikey-50
+        else:
+            direction="up"
+        if not TIMES  in tramStops[lineNo][direction].keys():
+            tramStops[lineNo][direction][TIMES]= {}
+        tramStops[lineNo][direction][TIMES][str(ikey)]= table[key]
+    return tramStops
 
 def generateGTFSStopTimes():
     tramStops = readTramwayStops()
-    print str(tramStops['4'])
-    print "Generate stop times"
-    f = open(getLinesPath(),"r")
-    lines = f.readlines()
-    f.close()
-
-    f = open(getDoneLinesPath(),"r")
-    donelines = f.readlines()
-    f.close()
-
-
-
+    print str(tramStops)
+    tramStops = appendLineTable("1",tramStops)
+    tramStops = appendLineTable("4",tramStops)
+    tramStops = appendLineTable("5",tramStops)
+    tramStops = appendLineTable("7",tramStops)
+    tramStops = appendLineTable("8",tramStops)
+    tramStops = appendLineTable("10",tramStops)
+    tramStops = appendLineTable("11",tramStops)
+    tramStops = appendLineTable("14",tramStops)
+    tramStops = appendLineTable("16",tramStops)
+    tramStops = appendLineTable("21",tramStops)
+    tramStops = appendLineTable("23",tramStops)
+    tramStops = appendLineTable("24",tramStops)
+    tramStops = appendLineTable("25",tramStops)
+    tramStops = appendLineTable("27",tramStops)
+    tramStops = appendLineTable("32",tramStops)
+    tramStops = appendLineTable("35",tramStops)
+    tramStops = appendLineTable("36",tramStops)
+    tramStops = appendLineTable("40",tramStops)
+    tramStops = appendLineTable("41",tramStops)
+    
     f=open(getStopTimesPath(),"w") 
     f.truncate()
     msg = "trip_id,arrival_time,departure_time,stop_id,stop_sequence"
@@ -241,12 +259,7 @@ def generateGTFSStopTimes():
     f.flush()
     f.close()
 
-    filter = []
-    filter.append("4")
-    processStopTimes(donelines,  filter, tramStops)
-
-
-
+    plotStopTimes(tramStops)
 
 def main():
     generateGTFSStopTimes()    
