@@ -33,6 +33,13 @@ STOPS_PREORAS = "stops_linii_preorasenesti.csv"
 LINES_PREORAS =       "linii_preorasenesti.csv"
 
 
+LINEFILTER="linefilter.txt"
+
+filteredlines=[]
+
+def getLineFilterPath():
+    return HOME_DIR + "/" + CRAWL_DIR + "/" + LINES_DIR + "/" + LINEFILTER
+
 
 
 def getLinesPath():
@@ -165,7 +172,7 @@ def readTramwayStops():
     for entry in stops:  
         if lineNumber  > 0:
         
-            print entry 
+            #print entry 
             tokens = tokenizeStopEntry(entry)
             tramwayStops[tokens[0]] = tokens
         lineNumber = lineNumber +1 
@@ -183,7 +190,7 @@ def readStops(path):
     for entry in stops:  
         if lineNumber  > 0:
         
-            print entry 
+            #print entry 
             tokens = tokenizeStopEntry(entry)
             tramwayStops[tokens[0]] = tokens
         lineNumber = lineNumber +1 
@@ -199,8 +206,21 @@ def generateStopData(stopId, stopCode, stopName, stopDesc, stopLat, stopLong):
     stopData.append(stopLong) #4
     return stopData
 
+def getValidStopPosition(stops, lineStops, name):
+    for key in lineStops:
+        if lineStops[key][3] != name:
+            continue
+        #print lineStops[key]
+        code = lineStops[key][4]
+        #print "Code = " + code
+        if stops[code][1] != "" and stops [code][2] != "":
+            #print stops[code][1]  + "," [code][2] 
+            return (stops[code][1],stops [code][2])
+    return ("","")
+
 def generateStops(stops, pathStops, pathLineStops):
     
+    global filteredlines
     ret = {}
     for k in stops:
         if k not in ret:
@@ -209,7 +229,7 @@ def generateStops(stops, pathStops, pathLineStops):
     tramwayStops = readStops(pathStops)
    
     tramwayLines = []
-
+    skipIt = 1
     for key in tramwayStops:
         if key in tramwayLineStops:
             if key in stops:
@@ -217,16 +237,37 @@ def generateStops(stops, pathStops, pathLineStops):
             stopInfo = tramwayStops[key]     
             lineStopInfo = tramwayLineStops[key]   
             if 1 == 1:
+                skipIt = 1
                 # tramwayLines[0] in lineStopInfo[5]:
                 # statia e pe linia tramvaiului
                 stopId = key
                 stopCode = key
                 stopName = stopInfo[3]
+               
                 stopDesc = "Statie comuna pentru liniile : "
+                if len(lineStopInfo[5]) == 1:
+                    stopDesc = "Statie izolata de pe traseul liniei "
                 for tram in lineStopInfo[5]:
                     stopDesc = stopDesc + " " + tram
+                    if len(filteredlines) == 0 or tram in filteredlines:
+                        #print "Will add station " + stopName
+                        skipIt = 0
                 stopLat = stopInfo[2]
                 stopLong = stopInfo[1]
+                if skipIt == 0:
+                    #print "Long:"+stopLong + "   Lat:" + stopLat
+                    if stopLong == "" and stopLat == "":
+                        #print "Stop " + stopName + " does not have GPS position. Looking around"
+                        (lon,lat)  = getValidStopPosition(tramwayStops, tramwayLineStops,stopName)
+                        stopLong = lon
+                        stopLat = lat
+                        if stopLong != "" and stopLat != "":
+                            if 1 == 0:
+                                print "Stop " + stopName + " has now a GPS position."
+                        else:
+                            print stopDesc
+                            print "Stop " + stopName + " has no GPS position."
+
                 #stopData = []
                 #stopData.append(stopId) # 0
                 #stopData.append(stopCode) # 1
@@ -235,91 +276,14 @@ def generateStops(stops, pathStops, pathLineStops):
                 #stopData.append(stopLat)  #3
                 #stopData.append(stopLong) #4
                 stopData = generateStopData(stopId, stopCode, stopName, stopDesc, stopLat, stopLong)
-                stops[key] =stopData 
-                ret[key] =stopData 
+                if skipIt == 0: 
+                    #print "Adding stop " + stopData[2]
+                    stops[key] =stopData 
+                    ret[key] =stopData 
 
     return ret
 
-def generateTramwayStops(stops):
-    
-    ret = {}
-    for k in stops:
-        if k not in ret:
-            ret[k] = stops[k]
-    tramwayLineStops = readLineStops(getTramwayLineStopsPath())
-    tramwayStops = readStops(getTramwayStopsPath())
-   
-    tramwayLines = []
 
-    for key in tramwayStops:
-        if key in tramwayLineStops:
-            if key in stops:
-                continue
-            stopInfo = tramwayStops[key]     
-            lineStopInfo = tramwayLineStops[key]   
-            if 1 == 1:
-                # tramwayLines[0] in lineStopInfo[5]:
-                # statia e pe linia tramvaiului
-                stopId = key
-                stopCode = key
-                stopName = stopInfo[3]
-                stopDesc = "Statie comuna pentru liniile : "
-                for tram in lineStopInfo[5]:
-                    stopDesc = stopDesc + " " + tram
-                stopLat = stopInfo[2]
-                stopLong = stopInfo[1]
-                #stopData = []
-                #stopData.append(stopId) # 0
-                #stopData.append(stopCode) # 1
-                #stopData.append(stopName) #2
-                #stopData.append(stopDesc) #2
-                #stopData.append(stopLat)  #3
-                #stopData.append(stopLong) #4
-                stopData = generateStopData(stopId, stopCode, stopName, stopDesc, stopLat, stopLong)
-                stops[key] =stopData 
-
-    return ret
-
-def generateTrolleybusStops(stops):
-
-    
-    ret = {}
-    for k in stops:
-        if k not in ret:
-            ret[k] = stops[k]
-
-    tramwayLineStops = readLineStops(getTrolleybusLineStopsPath())
-    tramwayStops = readStops(getTrolleybusStopsPath())
-   
-    tramwayLines = []
-
-    for key in tramwayStops:
-        if key in tramwayLineStops:
-            if key in stops:
-                continue
-            stopInfo = tramwayStops[key]     
-            lineStopInfo = tramwayLineStops[key]   
-            if 1 == 1:
-                # tramwayLines[0] in lineStopInfo[5]:
-                # statia e pe linia tramvaiului
-                stopId = key
-                stopCode = key
-                stopName = stopInfo[3]
-                stopDesc = "Statie comuna pentru liniile : "
-                for tram in lineStopInfo[5]:
-                    stopDesc = stopDesc + " " + tram
-                stopLat = stopInfo[2]
-                stopLong = stopInfo[1]
-                stopData = []
-                stopData.append(stopId) # 0
-                stopData.append(stopCode) # 1
-                stopData.append(stopName) #2
-                stopData.append(stopDesc) #2
-                stopData.append(stopLat)  #3
-                stopData.append(stopLong) #4
-                stops[key] =stopData 
-
-    return ret
 
 def writeKeys(stops):
 
@@ -338,16 +302,23 @@ def writeKeys(stops):
 
 
 def generateGTFSStops():
+    global filteredlines
     stops = {}
+    f = open(getLineFilterPath(),"r")
+    filteredlines = f.readlines()
+    f.close()
 
+    f = open(getLineFilterPath(),"r")
+    flines = f.readlines()
+    for l in flines:
+        filteredlines.append(l.strip())
+    f.close()
 
     stops = generateStops(stops, getTramwayStopsPath(),getTramwayLineStopsPath())
     stops = generateStops(stops, getTrolleybusStopsPath(),getTrolleybusLineStopsPath())
     stops = generateStops(stops, getAutobusStopsPath(),getAutobusLineStopsPath())
     stops = generateStops(stops, getPreorasStopsPath(),getPreorasLineStopsPath())
     stops = generateStops(stops, getExpresStopsPath(),getExpresLineStopsPath())
-    #stops = generateTramwayStops(stops)
-    #stops= generateTrolleybusStops(stops)
 
     f = open(getGTFSStopsPath(),"a")
     f.truncate()

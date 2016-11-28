@@ -26,6 +26,13 @@ KEY_DUMINICA="D"
 
 LINENO="4"
 
+LINEFILTER="linefilter.txt"
+
+filteredlines=[]
+
+def getLineFilterPath():
+    return HOME_DIR + "/" + CRAWL_DIR + "/" + LINES_DIR + "/" + LINEFILTER
+
 
 def getLinesTramwayPath():
     return HOME_DIR + "/" + CRAWL_DIR + "/" + CRAWL_STOPS_DIR + "/" + CRAWL_LINE_TRAMWAY
@@ -122,10 +129,10 @@ def readTimeTableFile(filePath):
     	    continue
 
         toks = line.strip().split(":")
-        if len(toks) == 2:
-            if len(timeTable[day]) < 1:
+        toks.append("00")
+        if len(toks) == 3:
+            if len(timeTable[day]) < 100:
                 timeTable[day].append(":".join(toks))
-            timeTable[day].append(":".join(toks))
 
     return timeTable
 
@@ -214,7 +221,11 @@ def plotStopTimes(stopTimes):
 
 
 def appendLineTable(lineNo, stops):
-    tramStops = stops        
+    tramStops = stops 
+    global filteredlines
+    print(str(filteredlines))    
+    if lineNo not in filteredlines:
+        return tramStops   
     table = readTimeTableForLine(lineNo)
     direction=""
     for key in table.keys():
@@ -230,6 +241,13 @@ def appendLineTable(lineNo, stops):
     return tramStops
 
 def generateGTFSStopTimes():
+    f = open(getLineFilterPath(),"r")
+    global filteredlines
+    flines = f.readlines()
+    for l in flines:
+        filteredlines.append(l.strip())
+    f.close()
+
     tramStops = readTramwayStops()
     print str(tramStops)
     tramStops = appendLineTable("1",tramStops)

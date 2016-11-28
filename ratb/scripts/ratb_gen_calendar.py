@@ -24,8 +24,8 @@ def genDefProps():
     properties["FRIDAY"] = "friday"
     properties["SATURDAY"] = "saturday"
     properties["SUNDAY"] = "sunday"
-    properties["END"] = "start_date"
-    properties["START"] = "end_date"
+    properties["START"] = "start_date"
+    properties["END"] = "end_date"
     return properties 
 
 def readProps(path):
@@ -65,8 +65,8 @@ def genProps(defProps, calendarProps):
         line = ""
         print "cal:" + str(cal) 
         
+        header = ""
         for key in calendarProps[cal]: 
-            header = ""
             if key in defProps:
                 if header:
                     header = header + ","

@@ -12,6 +12,12 @@ DONELINES_FILE = "donelines.txt"
 PROCESSEDTRIPS_FILE = "processedtrips.txt"
 LINES_FILE = "lines.txt"
 
+LINEFILTER="linefilter.txt"
+
+filteredlines=[]
+
+def getLineFilterPath():
+    return HOME_DIR + "/" + CRAWL_DIR + "/" + LINES_DIR + "/" + LINEFILTER
 
 def getLinesPath():
     return HOME_DIR + "/" + CRAWL_DIR + "/" + LINES_DIR + "/" + LINES_FILE
@@ -159,6 +165,10 @@ def processTrips(donelines, processedtrips, tripfilter):
                processFirstTripDown(fullpath)
 
 def generateGTFSTrips():
+    f = open(getLineFilterPath(),"r")
+    filteredlines = f.readlines()
+    f.close()
+
     print "Generate trips"
     f = open(getLinesPath(),"r")
     lines = f.readlines()
@@ -185,7 +195,8 @@ def generateGTFSTrips():
     f.close()
 
     tripfilter = []
-    #tripfilter.append("4")
+    for l in filteredlines:
+        tripfilter.append(l.strip())
     processTrips(donelines, processedtrips, tripfilter)
 
 

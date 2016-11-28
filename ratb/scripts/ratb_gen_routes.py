@@ -11,7 +11,12 @@ LINES_FILE = "lines.txt"
 DONELINES_FILE = "donelines.txt"
 PROCESSEDROUTES_FILE = "processedroutes.txt"
 
+LINEFILTER="linefilter.txt"
 
+filteredlines=[]
+
+def getLineFilterPath():
+    return HOME_DIR + "/" + CRAWL_DIR + "/" + LINES_DIR + "/" + LINEFILTER
 
 def getLinesPath():
     return HOME_DIR + "/" + CRAWL_DIR + "/" + LINES_DIR + "/" + LINES_FILE
@@ -192,6 +197,10 @@ def processRoutes(donelines, processedroutes, routefilter):
         f.close()
 
 def generateGTFSRoutes():
+    f = open(getLineFilterPath(),"r")
+    filteredlines = f.readlines()
+    f.close()
+
     f = open(getLinesPath(),"r")
     lines = f.readlines()
     f.close()
@@ -212,6 +221,8 @@ def generateGTFSRoutes():
 
     numar = 0
     for line in lines:
+        if len(filteredlines) > 0 and line not in filteredlines:
+    	    continue
         if line not in donelines:
     	    continue
         if line in processedroutes:
@@ -219,12 +230,14 @@ def generateGTFSRoutes():
 
     f=open(getRoutesPath(),"w") 
     f.truncate()
-    msg = "route_id,agency_id,route_short_name,route_long_name,route_desc,route_type,route_url,route_color,linia,route_text_color"
+    msg = "route_id,agency_id,route_short_name,route_long_name,route_desc,route_type,route_url,route_color,route_text_color"
     f.write( msg + "\n")
     f.flush()
 
     routefilter = []
-    #routefilter.append("4")
+    if len(filteredlines) > 0:
+        for l in filteredlines:
+            routefilter.append(l.strip())
     processRoutes(donelines, processedroutes, routefilter)
 
 def main():
